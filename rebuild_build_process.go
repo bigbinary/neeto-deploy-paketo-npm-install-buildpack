@@ -129,15 +129,21 @@ func (r RebuildBuildProcess) Run(modulesDir, cacheDir, workingDir, npmrcPath str
 		return fmt.Errorf("unable to stat node_modules in working directory: %w", err)
 	}
 
-	err = fs.Move(filepath.Join(workingDir, "node_modules"), filepath.Join(modulesDir, "node_modules"))
-	if err != nil {
-		return err
-	}
+	// err = fs.Move(filepath.Join(workingDir, "node_modules"), filepath.Join(modulesDir, "node_modules"))
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = os.Symlink(filepath.Join(modulesDir, "node_modules"), filepath.Join(workingDir, "node_modules"))
+	// err = os.Symlink(filepath.Join(modulesDir, "node_modules"), filepath.Join(workingDir, "node_modules"))
+	// if err != nil {
+	// 	return err
+	// }
+
+	err = fs.Copy(filepath.Join(workingDir, "node_modules"), filepath.Join(modulesDir, "node_modules"))
 	if err != nil {
-		return err
+		fmt.Println(err)
 	}
+	fmt.Println("Copy successful.")
 
 	return nil
 }
