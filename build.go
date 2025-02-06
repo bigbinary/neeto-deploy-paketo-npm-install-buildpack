@@ -140,13 +140,13 @@ func Build(entryResolver EntryResolver,
 		launch, build := entryResolver.MergeLayerTypes(NodeModules, context.Plan.Entries)
 
 		var layers []packit.Layer
-		var buildLayerPath string
+		// var buildLayerPath string
 		if build {
 			layer, err := context.Layers.Get("build-modules")
 			if err != nil {
 				return packit.BuildResult{}, err
 			}
-			buildLayerPath = layer.Path
+			// buildLayerPath = layer.Path
 
 			run, sha, err := process.ShouldRun(projectPath, layer.Metadata, globalNpmrcPath)
 			if err != nil {
@@ -168,15 +168,15 @@ func Build(entryResolver EntryResolver,
 					return packit.BuildResult{}, err
 				}
 
-				err = linker.Link(filepath.Join(projectPath, "node_modules"), filepath.Join(layer.Path, "node_modules"))
-				if err != nil {
-					return packit.BuildResult{}, err
-				}
+				// err = linker.Link(filepath.Join(projectPath, "node_modules"), filepath.Join(layer.Path, "node_modules"))
+				// if err != nil {
+				// 	return packit.BuildResult{}, err
+				// }
 
-				err = symlinkResolver.Resolve(filepath.Join(projectPath, "package-lock.json"), layer.Path)
-				if err != nil {
-					return packit.BuildResult{}, err
-				}
+				// err = symlinkResolver.Resolve(filepath.Join(projectPath, "package-lock.json"), layer.Path)
+				// if err != nil {
+				// 	return packit.BuildResult{}, err
+				// }
 
 				logger.Action("Completed in %s", duration.Round(time.Millisecond))
 				logger.Break()
@@ -188,7 +188,7 @@ func Build(entryResolver EntryResolver,
 				if globalNpmrcPath != "" {
 					layer.BuildEnv.Default("NPM_CONFIG_GLOBALCONFIG", globalNpmrcPath)
 				}
-				nodeModulesPath := filepath.Join(layer.Path, "node_modules")
+				nodeModulesPath := filepath.Join(projectPath, "node_modules")
 				layer.BuildEnv.Append("PATH", filepath.Join(nodeModulesPath, ".bin"), string(os.PathListSeparator))
 				layer.BuildEnv.Prepend("PATH", filepath.Join(nodeModulesPath, ".bin_local"), string(os.PathListSeparator))
 				layer.BuildEnv.Override("NODE_ENV", "development")
@@ -222,10 +222,12 @@ func Build(entryResolver EntryResolver,
 			} else {
 				logger.Process("Reusing cached layer %s", layer.Path)
 
-				err = linker.Link(filepath.Join(projectPath, "node_modules"), filepath.Join(layer.Path, "node_modules"))
+				err = fs.Copy(filepath.Join(layer.Path, "node_modules"), filepath.Join(projectPath, "node_modules"))
 				if err != nil {
-					return packit.BuildResult{}, err
+					fmt.Println(err)
 				}
+				fmt.Println("Copy successful.")
+
 			}
 			layer.Build = true
 			layer.Cache = true
@@ -246,118 +248,119 @@ func Build(entryResolver EntryResolver,
 
 			if run {
 				logger.Process("Executing launch environment install process")
+				fmt.Println("SHA:",sha)
 
 				layer, err = layer.Reset()
 				if err != nil {
 					return packit.BuildResult{}, err
 				}
 
-				if build {
-					err := fs.Copy(filepath.Join(buildLayerPath, "node_modules"), filepath.Join(projectPath, "node_modules"))
-					if err != nil {
-						return packit.BuildResult{}, err
-					}
-					process = pruneProcess
-				}
+				// if build {
+				// 	err := fs.Copy(filepath.Join(buildLayerPath, "node_modules"), filepath.Join(projectPath, "node_modules"))
+				// 	if err != nil {
+				// 		return packit.BuildResult{}, err
+				// 	}
+				// 	process = pruneProcess
+				// }
 
-				duration, err := clock.Measure(func() error {
-					return process.Run(layer.Path, npmCacheLayer.Path, projectPath, globalNpmrcPath, true)
-				})
-				if err != nil {
-					return packit.BuildResult{}, err
-				}
-				targetLayerPath := layer.Path
+				// duration, err := clock.Measure(func() error {
+				// 	return process.Run(layer.Path, npmCacheLayer.Path, projectPath, globalNpmrcPath, true)
+				// })
+				// if err != nil {
+				// 	return packit.BuildResult{}, err
+				// }
+				// targetLayerPath := layer.Path
 
-				if build {
-					err = fs.Move(filepath.Join(projectPath, "node_modules"), filepath.Join(layer.Path, "node_modules"))
-					if err != nil {
-						return packit.BuildResult{}, err
-					}
+				// if build {
+				// 	err = fs.Move(filepath.Join(projectPath, "node_modules"), filepath.Join(layer.Path, "node_modules"))
+				// 	if err != nil {
+				// 		return packit.BuildResult{}, err
+				// 	}
 
-					targetLayerPath = buildLayerPath
-				}
+				// 	targetLayerPath = buildLayerPath
+				// }
 
-				layer.ExecD = []string{filepath.Join(context.CNBPath, "bin", "setup-symlinks")}
+				// layer.ExecD = []string{filepath.Join(context.CNBPath, "bin", "setup-symlinks")}
 
-				err = linker.Link(filepath.Join(projectPath, "node_modules"), filepath.Join(targetLayerPath, "node_modules"))
-				if err != nil {
-					return packit.BuildResult{}, err
-				}
+				// err = linker.Link(filepath.Join(projectPath, "node_modules"), filepath.Join(targetLayerPath, "node_modules"))
+				// if err != nil {
+				// 	return packit.BuildResult{}, err
+				// }
 
-				keepBuildCache, _ := environment.Lookup("BP_KEEP_NODE_BUILD_CACHE")
-				if keepBuildCache != "true" {
-					linkName := filepath.Join(layer.Path, "node_modules", ".cache")
-					err = os.RemoveAll(linkName)
-					if err != nil {
-						return packit.BuildResult{}, err
-					}
+				// keepBuildCache, _ := environment.Lookup("BP_KEEP_NODE_BUILD_CACHE")
+				// if keepBuildCache != "true" {
+				// 	linkName := filepath.Join(layer.Path, "node_modules", ".cache")
+				// 	err = os.RemoveAll(linkName)
+				// 	if err != nil {
+				// 		return packit.BuildResult{}, err
+				// 	}
 
-					cacheFolder := filepath.Join(os.TempDir(), NODE_MODULES_CACHE)
-					err = os.Symlink(cacheFolder, linkName)
-					if err != nil {
-						return packit.BuildResult{}, err
-					}
-				}
+				// 	cacheFolder := filepath.Join(os.TempDir(), NODE_MODULES_CACHE)
+				// 	err = os.Symlink(cacheFolder, linkName)
+				// 	if err != nil {
+				// 		return packit.BuildResult{}, err
+				// 	}
+				// }
 
-				if build {
-					err = symlinkResolver.Copy(filepath.Join(projectPath, "package-lock.json"), buildLayerPath, layer.Path)
-					if err != nil {
-						return packit.BuildResult{}, err
-					}
-				} else {
-					err = symlinkResolver.Resolve(filepath.Join(projectPath, "package-lock.json"), targetLayerPath)
-					if err != nil {
-						return packit.BuildResult{}, err
-					}
-				}
+				// if build {
+				// 	err = symlinkResolver.Copy(filepath.Join(projectPath, "package-lock.json"), buildLayerPath, layer.Path)
+				// 	if err != nil {
+				// 		return packit.BuildResult{}, err
+				// 	}
+				// } else {
+				// 	err = symlinkResolver.Resolve(filepath.Join(projectPath, "package-lock.json"), targetLayerPath)
+				// 	if err != nil {
+				// 		return packit.BuildResult{}, err
+				// 	}
+				// }
 
-				logger.Action("Completed in %s", duration.Round(time.Millisecond))
-				logger.Break()
+				// logger.Action("Completed in %s", duration.Round(time.Millisecond))
+				// logger.Break()
 
-				layer.Metadata = map[string]interface{}{
-					"cache_sha": sha,
-				}
+				// layer.Metadata = map[string]interface{}{
+				// 	"cache_sha": sha,
+				// }
 
 				layer.LaunchEnv.Default("NPM_CONFIG_LOGLEVEL", "error")
 				layer.LaunchEnv.Default("NODE_PROJECT_PATH", projectPath)
-				nodeModulesPath := filepath.Join(layer.Path, "node_modules")
+				nodeModulesPath := filepath.Join(projectPath, "node_modules")
 				layer.LaunchEnv.Append("PATH", filepath.Join(nodeModulesPath, ".bin"), string(os.PathListSeparator))
 				layer.LaunchEnv.Prepend("PATH", filepath.Join(nodeModulesPath, ".bin_local"), string(os.PathListSeparator))
 
 				logger.EnvironmentVariables(layer)
 
-				if sbomDisabled {
-					logger.Subprocess("Skipping SBOM generation for Node Install")
-					logger.Break()
-				} else {
-					logger.GeneratingSBOM(layer.Path)
+				// if sbomDisabled {
+				// 	logger.Subprocess("Skipping SBOM generation for Node Install")
+				// 	logger.Break()
+				// } else {
+				// 	logger.GeneratingSBOM(layer.Path)
 
-					var sbomContent sbom.SBOM
-					duration, err = clock.Measure(func() error {
-						sbomContent, err = sbomGenerator.Generate(context.WorkingDir)
-						return err
-					})
-					if err != nil {
-						return packit.BuildResult{}, err
-					}
-					logger.Action("Completed in %s", duration.Round(time.Millisecond))
-					logger.Break()
+				// 	var sbomContent sbom.SBOM
+				// 	duration, err = clock.Measure(func() error {
+				// 		sbomContent, err = sbomGenerator.Generate(context.WorkingDir)
+				// 		return err
+				// 	})
+				// 	if err != nil {
+				// 		return packit.BuildResult{}, err
+				// 	}
+				// 	logger.Action("Completed in %s", duration.Round(time.Millisecond))
+				// 	logger.Break()
 
-					logger.FormattingSBOM(context.BuildpackInfo.SBOMFormats...)
+				// 	logger.FormattingSBOM(context.BuildpackInfo.SBOMFormats...)
 
-					layer.SBOM, err = sbomContent.InFormats(context.BuildpackInfo.SBOMFormats...)
-					if err != nil {
-						return packit.BuildResult{}, err
-					}
-				}
+				// 	layer.SBOM, err = sbomContent.InFormats(context.BuildpackInfo.SBOMFormats...)
+				// 	if err != nil {
+				// 		return packit.BuildResult{}, err
+				// 	}
+				// }
 			} else {
 				logger.Process("Reusing cached layer %s", layer.Path)
-				if !build {
-					err = linker.Link(filepath.Join(projectPath, "node_modules"), filepath.Join(layer.Path, "node_modules"))
-					if err != nil {
-						return packit.BuildResult{}, err
-					}
-				}
+				// if !build {
+				// 	err = linker.Link(filepath.Join(projectPath, "node_modules"), filepath.Join(layer.Path, "node_modules"))
+				// 	if err != nil {
+				// 		return packit.BuildResult{}, err
+				// 	}
+				// }
 			}
 
 			layer.Launch = true
